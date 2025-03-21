@@ -1,5 +1,4 @@
 import prisma from "@/app/libs/prismadb";
-import { list } from "postcss";
 
 
 export interface IListingsParams{

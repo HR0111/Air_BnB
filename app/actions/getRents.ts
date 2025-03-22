@@ -1,3 +1,5 @@
+
+
 import prisma from "@/app/libs/prismadb";
 
 interface IParams {
@@ -6,15 +8,13 @@ interface IParams {
   authorId?: string;
 }
 
-export default async function getReservations(params: IParams) {
+export default async function getRents(params: IParams) {
   try {
-    // const { listingId, userId, authorId } = params;//
     const resolvedParams = await params;
     
     const listingId = resolvedParams.listingId;
     const userId = resolvedParams.userId;
     const authorId = resolvedParams.authorId;
-
 
     const query: any = {};
 
@@ -30,7 +30,7 @@ export default async function getReservations(params: IParams) {
       query.listing = { userId: authorId };
     }
 
-    const reservations = await prisma.reservation.findMany({
+    const rents = await prisma.reservation.findMany({
       where: query,
       include: {
         listing: true,
@@ -40,18 +40,18 @@ export default async function getReservations(params: IParams) {
       },
     });
 
-    const safeReservations = reservations.map((reservation) => ({
-      ...reservation,
-      createdAt: reservation.createdAt.toISOString(),
-      startDate: reservation.startDate.toISOString(),
-      endDate: reservation.endDate.toISOString(),
+    const safeRents = rents.map((rent) => ({
+      ...rent,
+      createdAt: rent.createdAt.toISOString(),
+      startDate: rent.startDate.toISOString(),
+      endDate: rent.endDate.toISOString(),
       listing: {
-        ...reservation.listing,
-        createdAt: reservation.listing.createdAt.toISOString(),
+        ...rent.listing,
+        createdAt: rent.listing.createdAt.toISOString(),
       },
     }));
 
-    return safeReservations;
+    return safeRents;
   } catch (error: any) {
     throw new Error(error.message);
   }

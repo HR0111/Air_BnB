@@ -46,11 +46,26 @@ const ListingCard: React.FC<ListingCardProps> = ({
       return data.price;
   },[reservation, data.price]);
 
+  // const reservationDate = useMemo(() => {
+  //   if (!reservation) return null;
+  //   const start = new Date(reservation.startDate);
+  //   const end = new Date(reservation.endDate);
+  //   return `${format(start, 'PP')} - ${format(end, 'PP')}`
+  // }, [reservation]);
+
   const reservationDate = useMemo(() => {
     if (!reservation) return null;
+    
     const start = new Date(reservation.startDate);
     const end = new Date(reservation.endDate);
-    return `${format(start, 'PP')} - ${format(end, 'PP')}`
+    
+    // Check if it's an hourly booking
+    if (reservation.bookingType === 'hourly' && reservation.startTime && reservation.endTime) {
+      return `${format(start, 'PP')} (${reservation.startTime} - ${reservation.endTime})`;
+    }
+    
+    // Default date range display for daily bookings
+    return `${format(start, 'PP')} - ${format(end, 'PP')}`;
   }, [reservation]);
 
   return (
@@ -81,8 +96,11 @@ const ListingCard: React.FC<ListingCardProps> = ({
                 ${price}
              </div>
              {!reservation && (
-                <div className="font-light">night</div>
-             )}
+    <div className="font-light">night</div>
+  )}
+  {reservation && reservation.bookingType === 'hourly' && (
+    <div className="font-light">total</div>
+  )}
         </div>
         {onAction && actionLabel &&(
             <Button

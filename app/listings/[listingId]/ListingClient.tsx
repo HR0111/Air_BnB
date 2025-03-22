@@ -38,6 +38,12 @@ const ListingClient: React.FC<ListingClientProps> = ({
   reservations = [],
   currentUser,
 }) => {
+
+  useEffect(() => {
+    console.log("Listing object:", listing);
+    console.log("Listing ID:", listing?.id);
+  }, [listing]);
+
   const loginModal = useLoginModal();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -109,13 +115,33 @@ const ListingClient: React.FC<ListingClientProps> = ({
     // Minus the cleaning time slots (approx 1 hour per booking)
     const effectiveAvailableHours = 11;
     
-    // Calculate hourly rate
-    return Math.round(listing.price / effectiveAvailableHours);
+    // Calculate hourly rate (ensure it's at least 1)
+    return Math.max(1, Math.round(listing.price / effectiveAvailableHours));
   }, [listing.price]);
 
   const onCreateReservation = useCallback(() => {
+
     if (!currentUser) {
       return loginModal.onOpen();
+    }
+
+    if (!listing || !listing.id) {
+      toast.error('Listing information is missing');
+      setIsLoading(false);
+      return;
+    }
+    if (totalPrice <= 0) {
+      toast.error('Invalid price calculation');
+      setIsLoading(false);
+      return;
+    }
+    
+    
+    
+    if (!dateRange.startDate) {
+      toast.error('Start date is missing');
+      setIsLoading(false);
+      return;
     }
     
     // Add validation for hourly bookings
@@ -124,21 +150,69 @@ const ListingClient: React.FC<ListingClientProps> = ({
   }
 
     setIsLoading(true);
-    
-    // Prepare the reservation data based on booking type
-    const reservationData = {
-      totalPrice,
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate,
-      listingId: listing?.id,
-      bookingType,
-      ...(bookingType === 'hourly' ? {
-        startTime: timeRange.startTime,
-        endTime: timeRange.endTime
-      } : {})
-    };
-    console.log("Sending reservation data:", reservationData);
+    console.log("Current dateRange:", dateRange);
+    console.log("Start date valid?", dateRange.startDate instanceof Date);
+    console.log("End date valid?", dateRange.endDate instanceof Date);
+
+    // Make sure we have valid date objects
+  if (!dateRange.startDate || !(dateRange.startDate instanceof Date)) {
+    console.error("Invalid start date");
+    toast.error('Please select a valid date');
+    setIsLoading(false);
+    return;
+  }
   
+  // For hourly bookings, set endDate equal to startDate if not already set
+  // let formattedEndDate;
+  // if (bookingType === 'hourly') {
+  //   formattedEndDate = dateRange.startDate.toISOString();
+  // } else {
+  //   formattedEndDate = dateRange.endDate instanceof Date 
+  //     ? dateRange.endDate.toISOString()
+  //     : dateRange.startDate.toISOString();
+  // }
+  // For hourly bookings
+if (timeRange.startTime && timeRange.endTime) {
+  const startHour = parseInt(timeRange.startTime.split(':')[0]);
+  const endHour = parseInt(timeRange.endTime.split(':')[0]);
+  const hourCount = endHour - startHour;
+  
+  if (hourCount && hourlyPrice) {
+    setTotalPrice(hourCount * hourlyPrice);
+  } else {
+    setTotalPrice(hourlyPrice || listing.price); // Fallback to listing price if hourlyPrice is 0
+  }
+} else {
+  setTotalPrice(hourlyPrice || listing.price); // Fallback to listing price if hourly calculation fails
+}
+     
+  // Prepare the reservation data
+  const reservationData = {
+    totalPrice,
+    startDate: dateRange.startDate.toISOString(),
+    endDate: dateRange.endDate?.toISOString(),
+    listingId: listing.id,
+    bookingType,
+    ...(bookingType === 'hourly' ? {
+      startTime: timeRange.startTime,
+      endTime: timeRange.endTime
+    } : {})
+  };
+
+    console.log("Reservation data being sent:", JSON.stringify(reservationData));
+
+     // Check all required fields are present
+  if (!reservationData.listingId || !reservationData.startDate || !reservationData.totalPrice) {
+    toast.error('Missing required reservation data');
+    console.error("Missing fields:", {
+      listingId: !reservationData.listingId,
+      startDate: !reservationData.startDate,
+      totalPrice: !reservationData.totalPrice
+    });
+    setIsLoading(false);
+    return;
+  }
+
     axios
       .post('/api/reservations', reservationData)
       .then(() => {
@@ -153,14 +227,14 @@ const ListingClient: React.FC<ListingClientProps> = ({
       })
       .catch((error) => {
         console.error("Reservation error:", error);
+        console.error("Response data:", error.response?.data);
         const errorMessage = error.response?.data?.error || 'Something went wrong';
         toast.error(errorMessage);
       })
-      
       .finally(() => {
         setIsLoading(false);
       });
-    console.log("Sending reservation data:", reservationData);
+    
 
   }, [
     totalPrice, 

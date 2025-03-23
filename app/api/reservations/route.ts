@@ -86,6 +86,8 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
+
+      
       
       // Check if booking end time is before 11 PM
       if (endHour > 23) {
